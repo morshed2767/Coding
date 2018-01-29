@@ -1,0 +1,130 @@
+
+attiny_led.elf:     file format elf32-avr
+
+Sections:
+Idx Name          Size      VMA       LMA       File off  Algn
+  0 .text         00000054  00000000  00000000  00000054  2**1
+                  CONTENTS, ALLOC, LOAD, READONLY, CODE
+  1 .data         00000000  00800060  00800060  000000a8  2**0
+                  CONTENTS, ALLOC, LOAD, DATA
+  2 .comment      00000030  00000000  00000000  000000a8  2**0
+                  CONTENTS, READONLY
+  3 .note.gnu.avr.deviceinfo 0000003c  00000000  00000000  000000d8  2**2
+                  CONTENTS, READONLY
+  4 .debug_aranges 00000030  00000000  00000000  00000114  2**0
+                  CONTENTS, READONLY, DEBUGGING
+  5 .debug_info   00000394  00000000  00000000  00000144  2**0
+                  CONTENTS, READONLY, DEBUGGING
+  6 .debug_abbrev 00000334  00000000  00000000  000004d8  2**0
+                  CONTENTS, READONLY, DEBUGGING
+  7 .debug_line   000001dd  00000000  00000000  0000080c  2**0
+                  CONTENTS, READONLY, DEBUGGING
+  8 .debug_frame  00000044  00000000  00000000  000009ec  2**2
+                  CONTENTS, READONLY, DEBUGGING
+  9 .debug_str    00000240  00000000  00000000  00000a30  2**0
+                  CONTENTS, READONLY, DEBUGGING
+ 10 .debug_ranges 00000020  00000000  00000000  00000c70  2**0
+                  CONTENTS, READONLY, DEBUGGING
+
+Disassembly of section .text:
+
+00000000 <__vectors>:
+   0:	09 c0       	rjmp	.+18     	; 0x14 <__ctors_end>
+   2:	0e c0       	rjmp	.+28     	; 0x20 <__bad_interrupt>
+   4:	0d c0       	rjmp	.+26     	; 0x20 <__bad_interrupt>
+   6:	0c c0       	rjmp	.+24     	; 0x20 <__bad_interrupt>
+   8:	0b c0       	rjmp	.+22     	; 0x20 <__bad_interrupt>
+   a:	0a c0       	rjmp	.+20     	; 0x20 <__bad_interrupt>
+   c:	09 c0       	rjmp	.+18     	; 0x20 <__bad_interrupt>
+   e:	08 c0       	rjmp	.+16     	; 0x20 <__bad_interrupt>
+  10:	07 c0       	rjmp	.+14     	; 0x20 <__bad_interrupt>
+  12:	06 c0       	rjmp	.+12     	; 0x20 <__bad_interrupt>
+
+00000014 <__ctors_end>:
+  14:	11 24       	eor	r1, r1
+  16:	1f be       	out	0x3f, r1	; 63
+  18:	cf e9       	ldi	r28, 0x9F	; 159
+  1a:	cd bf       	out	0x3d, r28	; 61
+  1c:	0e d0       	rcall	.+28     	; 0x3a <main>
+  1e:	18 c0       	rjmp	.+48     	; 0x50 <_exit>
+
+00000020 <__bad_interrupt>:
+  20:	ef cf       	rjmp	.-34     	; 0x0 <__vectors>
+
+00000022 <InitADC>:
+
+
+void InitADC ()
+{
+	// Set the ADC input to PB2/ADC1, left adjust result
+	ADMUX |= (1 << MUX0);
+  22:	38 9a       	sbi	0x07, 0	; 7
+	ADMUX |= (1 << ADLAR);
+  24:	3d 9a       	sbi	0x07, 5	; 7
+	
+	// Set the prescaler to clock/128 & enable ADC
+	ADCSRA |= (1 << ADPS1) | (1 << ADPS0) | (1 << ADEN);
+  26:	86 b1       	in	r24, 0x06	; 6
+  28:	83 68       	ori	r24, 0x83	; 131
+  2a:	86 b9       	out	0x06, r24	; 6
+  2c:	08 95       	ret
+
+0000002e <adc_read>:
+
+
+int adc_read (void)
+{
+	// Start the conversion
+	ADCSRA |= (1 << ADSC);
+  2e:	36 9a       	sbi	0x06, 6	; 6
+
+	// Wait for it to finish
+	while (ADCSRA & (1 << ADSC));
+  30:	36 99       	sbic	0x06, 6	; 6
+  32:	fe cf       	rjmp	.-4      	; 0x30 <adc_read+0x2>
+
+	return ADCH;
+  34:	85 b1       	in	r24, 0x05	; 5
+}
+  36:	90 e0       	ldi	r25, 0x00	; 0
+  38:	08 95       	ret
+
+0000003a <main>:
+int main(void)
+{
+	
+	
+	int adc_in;
+	DDRB |= (1<<PB0);
+  3a:	b8 9a       	sbi	0x17, 0	; 23
+	PORTB = 0;
+  3c:	18 ba       	out	0x18, r1	; 24
+	
+	InitADC();
+  3e:	f1 df       	rcall	.-30     	; 0x22 <InitADC>
+	while (1)
+	{
+		
+		adc_in = adc_read();
+  40:	f6 df       	rcall	.-20     	; 0x2e <adc_read>
+		
+		if (adc_in > 128)
+  42:	81 38       	cpi	r24, 0x81	; 129
+  44:	91 05       	cpc	r25, r1
+  46:	14 f0       	brlt	.+4      	; 0x4c <__SREG__+0xd>
+		{
+			PORTB |= 1<<PB0;
+  48:	c0 9a       	sbi	0x18, 0	; 24
+  4a:	fa cf       	rjmp	.-12     	; 0x40 <__SREG__+0x1>
+		}
+		else
+		{
+			PORTB &= ~(1<<PB0);
+  4c:	c0 98       	cbi	0x18, 0	; 24
+  4e:	f8 cf       	rjmp	.-16     	; 0x40 <__SREG__+0x1>
+
+00000050 <_exit>:
+  50:	f8 94       	cli
+
+00000052 <__stop_program>:
+  52:	ff cf       	rjmp	.-2      	; 0x52 <__stop_program>
